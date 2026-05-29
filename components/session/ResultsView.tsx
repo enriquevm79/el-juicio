@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Trophy, XCircle } from "lucide-react";
+import { Trophy, XCircle, Home } from "lucide-react";
 import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { playGavel } from "@/lib/sounds";
 import type { Session, Participant, Vote } from "@/lib/types";
@@ -48,6 +49,14 @@ export default function ResultsView({ session }: ResultsViewProps) {
         <p className="text-text-muted text-sm">
           El moderador ha cancelado esta sesión.
         </p>
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={() => window.location.href = "/"}
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Volver al inicio
+        </Button>
       </motion.div>
     );
   }
@@ -160,6 +169,16 @@ export default function ResultsView({ session }: ResultsViewProps) {
         <p className="text-xs text-text-muted mb-1">Tema debatido:</p>
         <p className="text-sm text-foreground">{session.topic}</p>
       </Card>
+
+      <Button
+        variant="secondary"
+        size="md"
+        className="w-full"
+        onClick={() => window.location.href = "/"}
+      >
+        <Home className="w-4 h-4 mr-2" />
+        Volver al inicio
+      </Button>
     </motion.div>
   );
 }
