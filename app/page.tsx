@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Gavel, Users, Shield } from "lucide-react";
+import { Gavel, Users, Shield, HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -77,6 +77,15 @@ export default function Home() {
             >
               <Users className="w-5 h-5 mr-2" />
               Unirse con PIN
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => router.push("/como-jugar")}
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
+              ¿Cómo jugar?
             </Button>
           </motion.div>
         ) : (
