@@ -48,7 +48,7 @@ export default function Home() {
             El Juicio
           </h1>
           <p className="text-text-muted text-sm">
-            Debate jurídico interactivo
+            Un juego de argumentos y contraargumentos
           </p>
         </div>
 

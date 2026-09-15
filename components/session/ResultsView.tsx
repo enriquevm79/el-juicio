@@ -73,9 +73,9 @@ export default function ResultsView({ session }: ResultsViewProps) {
 
   const winnerLabel =
     winner === "team_a"
-      ? "Equipo A (Defensa)"
+      ? "Equipo A (Argumentador)"
       : winner === "team_b"
-        ? "Equipo B (Refutación)"
+        ? "Equipo B (Retador)"
         : "Empate";
 
   const winnerColor =

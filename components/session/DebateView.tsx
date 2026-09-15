@@ -97,7 +97,7 @@ export default function DebateView({ session, participant }: DebateViewProps) {
         <Card className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold text-secondary">
-              {participant.role === "team_a" ? "Tu Defensa" : "Tu Refutación"}
+              {participant.role === "team_a" ? "Tu Argumento" : "Tu Réplica"}
             </p>
             <span className="text-xs text-text-muted">
               {argument.length}/{ARGUMENT_MAX_LENGTH}

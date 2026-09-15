@@ -583,7 +583,7 @@ export default function HostSessionPage() {
                 hostVote === "team_a" ? "opacity-100" : "opacity-80"
               }`}
             >
-              <p className="text-xs text-primary font-bold">EQUIPO A — DEFENSA</p>
+              <p className="text-xs text-primary font-bold">EQUIPO A — ARGUMENTADOR</p>
               <p className="text-sm text-foreground">
                 {teamAArgument?.content || "No se presentó argumento"}
               </p>
@@ -594,7 +594,7 @@ export default function HostSessionPage() {
               }`}
             >
               <p className="text-xs text-danger font-bold">
-                EQUIPO B — REFUTACIÓN
+                EQUIPO B — RETADOR
               </p>
               <p className="text-sm text-foreground">
                 {teamBArgument?.content || "No se presentó argumento"}
@@ -639,7 +639,7 @@ export default function HostSessionPage() {
 
         <div>
           <p className="text-xs text-primary mb-1">
-            Equipo A — Defensa ({teamA.length}/{MAX_TEAM_SIZE})
+            Equipo A — Argumentador ({teamA.length}/{MAX_TEAM_SIZE})
           </p>
           {teamA.map((p) => (
             <ParticipantRow
@@ -654,7 +654,7 @@ export default function HostSessionPage() {
 
         <div>
           <p className="text-xs text-danger mb-1">
-            Equipo B — Refutación ({teamB.length}/{MAX_TEAM_SIZE})
+            Equipo B — Retador ({teamB.length}/{MAX_TEAM_SIZE})
           </p>
           {teamB.map((p) => (
             <ParticipantRow

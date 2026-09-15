@@ -86,9 +86,9 @@ export default function ResultsPage() {
         className="text-2xl font-bold text-center"
       >
         {winner === "team_a"
-          ? "¡Gana la Defensa!"
+          ? "¡Gana el Argumentador!"
           : winner === "team_b"
-            ? "¡Gana la Refutación!"
+            ? "¡Gana el Retador!"
             : "¡Empate!"}
       </motion.h1>
 
@@ -139,13 +139,13 @@ export default function ResultsPage() {
       {/* Argumentos */}
       {teamAArg && (
         <Card className="w-full border-l-4 border-l-primary">
-          <p className="text-xs text-primary font-bold mb-1">DEFENSA</p>
+          <p className="text-xs text-primary font-bold mb-1">ARGUMENTADOR</p>
           <p className="text-sm text-foreground">{teamAArg.content}</p>
         </Card>
       )}
       {teamBArg && (
         <Card className="w-full border-l-4 border-l-danger">
-          <p className="text-xs text-danger font-bold mb-1">REFUTACIÓN</p>
+          <p className="text-xs text-danger font-bold mb-1">RETADOR</p>
           <p className="text-sm text-foreground">{teamBArg.content}</p>
         </Card>
       )}

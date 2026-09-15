@@ -28,7 +28,7 @@ export default function ComoJugarPage() {
       icon: <Users className="w-6 h-6 text-primary" />,
       title: "2. Los participantes se unen",
       description:
-        "Los alumnos abren la app en su celular, escriben el PIN y su nombre. El moderador asigna quién es Equipo A (Defensa), Equipo B (Refutación) y quién es Jurado.",
+        "Los alumnos abren la app en su celular, escriben el PIN y su nombre. El moderador asigna quién es Equipo A (Argumentador), Equipo B (Retador) y quién es Jurado.",
     },
     {
       icon: <Gavel className="w-6 h-6 text-primary" />,
@@ -40,7 +40,7 @@ export default function ComoJugarPage() {
       icon: <Timer className="w-6 h-6 text-warning" />,
       title: "4. Fase de argumentación",
       description:
-        "Se inicia el debate. Cada equipo tiene un tiempo limitado para escribir su argumento (defensa o refutación). Cuando ambos envían, se pasa automáticamente a votación.",
+        "Se inicia el debate. Cada equipo tiene un tiempo limitado para escribir su argumento (a favor o en contra). Cuando ambos envían, se pasa automáticamente a votación.",
     },
     {
       icon: <Vote className="w-6 h-6 text-danger" />,
@@ -127,11 +127,11 @@ export default function ComoJugarPage() {
               <span className="text-text-muted"> Crea la sesión, carga el tema, controla tiempos, asigna equipos.</span>
             </div>
             <div>
-              <span className="font-bold text-primary">Equipo A — Defensa:</span>
+              <span className="font-bold text-primary">Equipo A — Argumentador:</span>
               <span className="text-text-muted"> 1 a 3 personas que argumentan a favor del tema.</span>
             </div>
             <div>
-              <span className="font-bold text-danger">Equipo B — Refutación:</span>
+              <span className="font-bold text-danger">Equipo B — Retador:</span>
               <span className="text-text-muted"> 1 a 3 personas que argumentan en contra.</span>
             </div>
             <div>

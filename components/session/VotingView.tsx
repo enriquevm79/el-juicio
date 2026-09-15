@@ -116,7 +116,7 @@ export default function VotingView({ session, participant }: VotingViewProps) {
           }`}
         >
           <p className="text-xs text-primary font-bold mb-2">
-            EQUIPO A — DEFENSA
+            EQUIPO A — ARGUMENTADOR
           </p>
           <p className="text-sm text-foreground">
             {teamAArgument?.content || "No se presentó argumento"}
@@ -129,7 +129,7 @@ export default function VotingView({ session, participant }: VotingViewProps) {
           }`}
         >
           <p className="text-xs text-danger font-bold mb-2">
-            EQUIPO B — REFUTACIÓN
+            EQUIPO B — RETADOR
           </p>
           <p className="text-sm text-foreground">
             {teamBArgument?.content || "No se presentó argumento"}

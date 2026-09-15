@@ -240,8 +240,8 @@ function LobbyView({
   participants: Participant[];
 }) {
   const roleLabels = {
-    team_a: "Equipo A (Defensa)",
-    team_b: "Equipo B (Refutación)",
+    team_a: "Equipo A (Argumentador)",
+    team_b: "Equipo B (Retador)",
     jury: "Jurado",
   };
 
