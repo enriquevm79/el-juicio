@@ -39,11 +39,11 @@ export default function SessionPage() {
         .from("sessions")
         .select("*")
         .eq("pin", pin)
-        .in("status", ["waiting"])
+        .in("status", ["waiting", "in_progress", "voting"])
         .single();
 
       if (sessionError || !sessionData) {
-        setError("Sesión no encontrada o ya iniciada. Verifica el PIN.");
+        setError("Sesión no encontrada. Verifica el PIN.");
         setJoining(false);
         return;
       }
@@ -51,7 +51,8 @@ export default function SessionPage() {
       const sess = sessionData as Session;
       setSession(sess);
 
-      // Verificar si ya estamos en la sesión (reconexión de esta pestaña)
+      // Reconexión: si ya éramos parte de la sesión, volvemos a entrar aunque
+      // el debate ya haya iniciado.
       const storedId = sessionStorage.getItem(`participant_${sess.id}`);
       if (storedId) {
         const { data: existing } = await supabase
@@ -65,6 +66,13 @@ export default function SessionPage() {
           setJoining(false);
           return;
         }
+      }
+
+      // El lobby se cierra al iniciar: solo se reconectan los que ya estaban
+      if (sess.status !== "waiting") {
+        setError("El debate ya inició. No es posible unirse.");
+        setJoining(false);
+        return;
       }
 
       // Verificar límite de participantes

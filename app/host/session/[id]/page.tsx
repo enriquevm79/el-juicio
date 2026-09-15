@@ -11,7 +11,8 @@ import {
   UserMinus,
   Send,
   Vote,
-  CheckCircle2,
+  Gavel,
+  ThumbsUp,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -20,11 +21,24 @@ import PinDisplay from "@/components/ui/PinDisplay";
 import Timer from "@/components/ui/Timer";
 import { createClient } from "@/lib/supabase/client";
 import {
+  startDebatePhase,
+  startVotingPhase,
+  finishSessionPhase,
+  pausePhase,
+  resumePhase,
+} from "@/lib/phases";
+import {
   TOPIC_MIN_LENGTH,
   TOPIC_MAX_LENGTH,
   MAX_TEAM_SIZE,
 } from "@/lib/constants";
-import type { Session, Participant, SessionStatus, Argument } from "@/lib/types";
+import type {
+  Session,
+  Participant,
+  SessionStatus,
+  Argument,
+  VoteChoice,
+} from "@/lib/types";
 
 export default function HostSessionPage() {
   const params = useParams();
@@ -37,8 +51,11 @@ export default function HostSessionPage() {
   const [votes, setVotes] = useState<number>(0);
   const [topic, setTopic] = useState("");
   const [error, setError] = useState("");
-  const [timerRunning, setTimerRunning] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  // El moderador puede sumarse como jurado: se crea un participante normal,
+  // así su voto cuenta igual que el de los demás.
+  const [hostParticipantId, setHostParticipantId] = useState<string | null>(null);
+  const [hostVote, setHostVote] = useState<VoteChoice | null>(null);
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
   const hasAutoTransitioned = useRef(false);
@@ -93,7 +110,26 @@ export default function HostSessionPage() {
       router.push("/");
       return;
     }
+    setHostParticipantId(localStorage.getItem(`host_participant_${sessionId}`));
   }, [sessionId, router]);
+
+  // Recuperar el voto del moderador (si ya votó antes de recargar)
+  useEffect(() => {
+    if (!hostParticipantId) return;
+
+    const loadHostVote = async () => {
+      const { data } = await supabase
+        .from("votes")
+        .select("voted_for")
+        .eq("session_id", sessionId)
+        .eq("participant_id", hostParticipantId)
+        .maybeSingle();
+
+      setHostVote(data ? (data as { voted_for: VoteChoice }).voted_for : null);
+    };
+
+    loadHostVote();
+  }, [hostParticipantId, sessionId, supabase]);
 
   // Carga inicial + suscripción realtime
   useEffect(() => {
@@ -220,7 +256,68 @@ export default function HostSessionPage() {
   // Expulsar participante
   const kickParticipant = async (participantId: string) => {
     await supabase.from("participants").delete().eq("id", participantId);
+    if (participantId === hostParticipantId) {
+      localStorage.removeItem(`host_participant_${sessionId}`);
+      setHostParticipantId(null);
+      setHostVote(null);
+    }
     loadParticipants();
+  };
+
+  // El moderador entra o sale del jurado (solo antes de iniciar)
+  const toggleHostAsJury = async () => {
+    if (session?.status !== "waiting") return;
+
+    if (hostParticipantId) {
+      await supabase.from("participants").delete().eq("id", hostParticipantId);
+      localStorage.removeItem(`host_participant_${sessionId}`);
+      setHostParticipantId(null);
+      setHostVote(null);
+      loadParticipants();
+      return;
+    }
+
+    const { data, error: joinError } = await supabase
+      .from("participants")
+      .insert({
+        session_id: sessionId,
+        name: "Moderador",
+        role: "jury",
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (joinError || !data) {
+      setError("No se pudo unir al jurado. Intenta de nuevo.");
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
+
+    const id = (data as Participant).id;
+    localStorage.setItem(`host_participant_${sessionId}`, id);
+    setHostParticipantId(id);
+    loadParticipants();
+  };
+
+  // Voto del moderador
+  const castHostVote = async (choice: VoteChoice) => {
+    if (!hostParticipantId || hostVote) return;
+
+    const { error: voteError } = await supabase.from("votes").insert({
+      session_id: sessionId,
+      participant_id: hostParticipantId,
+      voted_for: choice,
+    });
+
+    if (voteError && voteError.code !== "23505") {
+      setError("No se pudo registrar tu voto.");
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
+
+    setHostVote(choice);
+    loadVoteCount();
   };
 
   // Cargar tema
@@ -259,30 +356,39 @@ export default function HostSessionPage() {
 
     setError("");
     hasAutoTransitioned.current = false;
-    await updateStatus("in_progress");
-    setTimerRunning(true);
+    setActionLoading(true);
+    const { error: startError } = await startDebatePhase(supabase, session);
+    setActionLoading(false);
+    if (startError) {
+      setError("No se pudo iniciar el debate. Revisa la conexión.");
+      return;
+    }
+    await loadSession();
   };
 
   // Iniciar votación
-  const startVoting = useCallback(async () => {
-    setTimerRunning(false);
-    await supabase
-      .from("sessions")
-      .update({ status: "voting" })
-      .eq("id", sessionId);
+  const startVoting = async () => {
+    if (!session) return;
+    await startVotingPhase(supabase, session);
     await loadSession();
-    setTimeout(() => setTimerRunning(true), 500);
-  }, [sessionId, supabase, loadSession]);
+  };
 
   // Finalizar sesión
-  const finishSession = useCallback(async () => {
-    setTimerRunning(false);
-    await supabase
-      .from("sessions")
-      .update({ status: "finished" })
-      .eq("id", sessionId);
+  const finishSession = async () => {
+    await finishSessionPhase(supabase, sessionId);
     await loadSession();
-  }, [sessionId, supabase, loadSession]);
+  };
+
+  // Pausar / reanudar la fase actual (se refleja en todos los dispositivos)
+  const togglePause = async () => {
+    if (!session) return;
+    if (session.phase_ends_at) {
+      await pausePhase(supabase, session);
+    } else {
+      await resumePhase(supabase, session);
+    }
+    await loadSession();
+  };
 
   // Cancelar sesión
   const cancelSession = async () => {
@@ -296,17 +402,22 @@ export default function HostSessionPage() {
     if (actionLoading) return;
     setActionLoading(true);
     setTopic("");
-    setTimerRunning(false);
     hasAutoTransitioned.current = false;
     hasAutoFinished.current = false;
     await supabase
       .from("sessions")
-      .update({ status: "waiting", topic: null })
+      .update({
+        status: "waiting",
+        topic: null,
+        phase_ends_at: null,
+        paused_seconds_left: null,
+      })
       .eq("id", sessionId);
     await supabase.from("arguments").delete().eq("session_id", sessionId);
     await supabase.from("votes").delete().eq("session_id", sessionId);
     setArguments([]);
     setVotes(0);
+    setHostVote(null);
     await loadSession();
     setActionLoading(false);
   };
@@ -324,6 +435,10 @@ export default function HostSessionPage() {
   const jury = participants.filter((p) => p.role === "jury");
   const teamASubmitted = arguments_.some((a) => a.team === "team_a");
   const teamBSubmitted = arguments_.some((a) => a.team === "team_b");
+  const hostParticipant = participants.find((p) => p.id === hostParticipantId);
+  const hostIsJury = hostParticipant?.role === "jury";
+  const teamAArgument = arguments_.find((a) => a.team === "team_a");
+  const teamBArgument = arguments_.find((a) => a.team === "team_b");
 
   return (
     <main className="flex-1 flex flex-col px-4 py-6 gap-4 max-w-lg mx-auto w-full">
@@ -350,12 +465,14 @@ export default function HostSessionPage() {
             exit={{ opacity: 0, scale: 0.9 }}
           >
             <Timer
-              totalSeconds={
+              key={session.status}
+              endsAt={session.phase_ends_at}
+              pausedSecondsLeft={session.paused_seconds_left}
+              fallbackSeconds={
                 session.status === "in_progress"
                   ? session.argument_time
                   : session.voting_time
               }
-              isRunning={timerRunning}
               onTimeUp={() => {
                 if (session.status === "in_progress") {
                   startVoting();
@@ -427,6 +544,89 @@ export default function HostSessionPage() {
             >
               Cambiar tema
             </button>
+          )}
+        </Card>
+      )}
+
+      {/* El moderador puede sumarse al jurado */}
+      {session.status === "waiting" && (
+        <Card className="flex items-center justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <Gavel className="w-4 h-4 text-secondary mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm text-foreground font-medium">
+                Votar como jurado
+              </p>
+              <p className="text-xs text-text-muted">
+                Tu voto cuenta igual que el de los demás
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant={hostParticipantId ? "danger" : "secondary"}
+            onClick={toggleHostAsJury}
+          >
+            {hostParticipantId ? "Salir" : "Unirme"}
+          </Button>
+        </Card>
+      )}
+
+      {/* Papeleta del moderador */}
+      {session.status === "voting" && hostIsJury && (
+        <Card className="flex flex-col gap-3">
+          <p className="text-xs text-secondary font-bold uppercase">Tu voto</p>
+
+          <div className="flex flex-col gap-2">
+            <div
+              className={`border-l-4 border-l-primary pl-3 ${
+                hostVote === "team_a" ? "opacity-100" : "opacity-80"
+              }`}
+            >
+              <p className="text-xs text-primary font-bold">EQUIPO A — DEFENSA</p>
+              <p className="text-sm text-foreground">
+                {teamAArgument?.content || "No se presentó argumento"}
+              </p>
+            </div>
+            <div
+              className={`border-l-4 border-l-danger pl-3 ${
+                hostVote === "team_b" ? "opacity-100" : "opacity-80"
+              }`}
+            >
+              <p className="text-xs text-danger font-bold">
+                EQUIPO B — REFUTACIÓN
+              </p>
+              <p className="text-sm text-foreground">
+                {teamBArgument?.content || "No se presentó argumento"}
+              </p>
+            </div>
+          </div>
+
+          {hostVote ? (
+            <p className="text-sm text-success text-center">
+              ✓ Votaste por el Equipo {hostVote === "team_a" ? "A" : "B"}
+            </p>
+          ) : (
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                size="md"
+                className="flex-1 border-primary/30 hover:border-primary"
+                onClick={() => castHostVote("team_a")}
+              >
+                <ThumbsUp className="w-4 h-4 mr-2" />
+                Equipo A
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                className="flex-1 border-danger/30 hover:border-danger"
+                onClick={() => castHostVote("team_b")}
+              >
+                <ThumbsUp className="w-4 h-4 mr-2" />
+                Equipo B
+              </Button>
+            </div>
           )}
         </Card>
       )}
@@ -510,9 +710,9 @@ export default function HostSessionPage() {
               size="md"
               variant="secondary"
               className="w-full"
-              onClick={() => setTimerRunning(!timerRunning)}
+              onClick={togglePause}
             >
-              {timerRunning ? (
+              {session.phase_ends_at ? (
                 <>
                   <Pause className="w-4 h-4 mr-2" /> Pausar
                 </>

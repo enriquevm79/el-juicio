@@ -18,6 +18,11 @@ CREATE TABLE sessions (
   argument_time INTEGER NOT NULL DEFAULT 180,
   voting_time INTEGER NOT NULL DEFAULT 60,
   max_participants INTEGER NOT NULL DEFAULT 30,
+  -- Fecha límite de la fase actual: es la fuente de verdad del cronómetro,
+  -- así cualquier dispositivo puede avanzar la fase sin depender del host.
+  phase_ends_at TIMESTAMPTZ,
+  -- Segundos congelados mientras el moderador tiene la fase en pausa
+  paused_seconds_left INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -109,6 +114,10 @@ CREATE POLICY "Cualquiera puede ver votos"
 CREATE POLICY "Jurados pueden votar"
   ON votes FOR INSERT
   WITH CHECK (true);
+
+CREATE POLICY "Votos pueden ser eliminados (reset)"
+  ON votes FOR DELETE
+  USING (true);
 
 -- Políticas para arguments
 CREATE POLICY "Cualquiera puede ver argumentos"

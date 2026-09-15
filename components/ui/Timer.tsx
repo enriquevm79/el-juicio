@@ -1,77 +1,63 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatTime, getTimerState } from "@/lib/utils";
+import { secondsLeftUntil } from "@/lib/phases";
 import { playTick, playBuzzer } from "@/lib/sounds";
 
 interface TimerProps {
-  /** Total de segundos para la cuenta regresiva */
-  totalSeconds: number;
-  /** Si el timer está activo */
-  isRunning: boolean;
-  /** Callback cuando llega a 0 */
+  /** Fecha límite (ISO) guardada en la sesión. null = pausado o sin iniciar */
+  endsAt: string | null;
+  /** Segundos congelados mientras la sesión está en pausa */
+  pausedSecondsLeft?: number | null;
+  /** Segundos a mostrar cuando no hay fecha límite ni pausa */
+  fallbackSeconds: number;
+  /** Se ejecuta una sola vez cuando la cuenta llega a 0 */
   onTimeUp?: () => void;
 }
 
 export default function Timer({
-  totalSeconds,
-  isRunning,
+  endsAt,
+  pausedSecondsLeft = null,
+  fallbackSeconds,
   onTimeUp,
 }: TimerProps) {
-  const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [runningSeconds, setRunningSeconds] = useState(() =>
+    endsAt ? secondsLeftUntil(endsAt) : 0
+  );
   const onTimeUpRef = useRef(onTimeUp);
-  const hasFinished = useRef(false);
 
-  // Mantener ref actualizada sin causar re-renders
-  onTimeUpRef.current = onTimeUp;
+  useEffect(() => {
+    onTimeUpRef.current = onTimeUp;
+  });
 
+  const isRunning = endsAt !== null;
+  const secondsLeft = isRunning
+    ? runningSeconds
+    : pausedSecondsLeft ?? fallbackSeconds;
   const timerState = getTimerState(secondsLeft);
 
-  // Reset cuando cambia totalSeconds
   useEffect(() => {
-    setSecondsLeft(totalSeconds);
-    hasFinished.current = false;
-  }, [totalSeconds]);
+    if (!endsAt) return;
 
-  // Intervalo del timer
-  useEffect(() => {
-    if (!isRunning) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          intervalRef.current = null;
-          if (!hasFinished.current) {
-            hasFinished.current = true;
-            playBuzzer();
-            // Ejecutar en el siguiente tick para evitar setState durante render
-            setTimeout(() => onTimeUpRef.current?.(), 0);
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+    let fired = false;
+    const tick = () => {
+      const left = secondsLeftUntil(endsAt);
+      setRunningSeconds(left);
+      if (left === 0 && !fired) {
+        fired = true;
+        playBuzzer();
+        onTimeUpRef.current?.();
       }
     };
-  }, [isRunning]);
 
-  // Sonido tick en los últimos 5 segundos
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [endsAt]);
+
   useEffect(() => {
-    if (secondsLeft <= 5 && secondsLeft > 0 && isRunning) {
+    if (isRunning && secondsLeft <= 5 && secondsLeft > 0) {
       const volume = Math.min(1, 0.3 + (5 - secondsLeft) * 0.15);
       playTick(volume);
     }
@@ -107,7 +93,12 @@ export default function Timer({
       >
         {formatTime(secondsLeft)}
       </span>
-      {timerState === "critical" && (
+      {!isRunning && (
+        <span className="text-xs text-text-muted mt-1 uppercase tracking-wider">
+          En pausa
+        </span>
+      )}
+      {isRunning && timerState === "critical" && (
         <span className="text-xs text-danger mt-1 uppercase tracking-wider animate-pulse">
           ¡Tiempo!
         </span>

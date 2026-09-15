@@ -7,8 +7,13 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Timer from "@/components/ui/Timer";
 import { createClient } from "@/lib/supabase/client";
+import { startVotingPhase } from "@/lib/phases";
 import { ARGUMENT_MIN_LENGTH, ARGUMENT_MAX_LENGTH } from "@/lib/constants";
 import type { Session, Participant } from "@/lib/types";
+
+// Margen para que un argumento enviado justo al sonar el buzzer alcance a
+// guardarse antes de que otro dispositivo cambie la fase.
+const TIME_UP_GRACE_MS = 2000;
 
 interface DebateViewProps {
   session: Session;
@@ -57,6 +62,15 @@ export default function DebateView({ session, participant }: DebateViewProps) {
     setError("");
   };
 
+  const handleTimeUp = async () => {
+    if (isTeamMember && !submitted && argument.length >= ARGUMENT_MIN_LENGTH) {
+      await handleSubmit();
+      await startVotingPhase(supabase, session);
+      return;
+    }
+    setTimeout(() => startVotingPhase(supabase, session), TIME_UP_GRACE_MS);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -72,14 +86,10 @@ export default function DebateView({ session, participant }: DebateViewProps) {
 
       {/* Timer */}
       <Timer
-        totalSeconds={session.argument_time}
-        isRunning={true}
-        onTimeUp={() => {
-          // Auto-enviar si el equipo no ha enviado
-          if (isTeamMember && !submitted && argument.length >= ARGUMENT_MIN_LENGTH) {
-            handleSubmit();
-          }
-        }}
+        endsAt={session.phase_ends_at}
+        pausedSecondsLeft={session.paused_seconds_left}
+        fallbackSeconds={session.argument_time}
+        onTimeUp={handleTimeUp}
       />
 
       {/* Vista según rol */}

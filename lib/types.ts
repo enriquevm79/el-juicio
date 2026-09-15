@@ -21,6 +21,8 @@ export interface Session {
   argument_time: number; // segundos
   voting_time: number; // segundos
   max_participants: number;
+  phase_ends_at: string | null; // fecha límite de la fase actual
+  paused_seconds_left: number | null; // segundos congelados si está en pausa
   created_at: string;
 }
 

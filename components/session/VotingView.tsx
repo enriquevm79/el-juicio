@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Timer from "@/components/ui/Timer";
 import { createClient } from "@/lib/supabase/client";
+import { finishSessionPhase } from "@/lib/phases";
 import type { Session, Participant, Argument, VoteChoice } from "@/lib/types";
 
 interface VotingViewProps {
@@ -99,14 +100,13 @@ export default function VotingView({ session, participant }: VotingViewProps) {
         <p className="text-foreground font-medium">{session.topic}</p>
       </Card>
 
-      {/* Timer de votación (solo jurado) */}
-      {isJury && !voted && (
-        <Timer
-          totalSeconds={session.voting_time}
-          isRunning={true}
-          onTimeUp={() => {}}
-        />
-      )}
+      {/* Timer de votación */}
+      <Timer
+        endsAt={session.phase_ends_at}
+        pausedSecondsLeft={session.paused_seconds_left}
+        fallbackSeconds={session.voting_time}
+        onTimeUp={() => finishSessionPhase(supabase, session.id)}
+      />
 
       {/* Argumentos */}
       <div className="flex flex-col gap-3">
